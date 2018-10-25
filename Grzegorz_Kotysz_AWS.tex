@@ -1,0 +1,82 @@
+\documentclass[12pt,english]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[a4paper]{geometry}
+\geometry{verbose,tmargin=2cm,bmargin=2cm,lmargin=2cm,rmargin=2cm}
+\usepackage{array}
+\usepackage{float}
+\usepackage{multirow}
+\usepackage{amstext}
+\usepackage{graphicx}
+\usepackage{listings} % enables source code to be pasted
+\usepackage[stable]{footmisc} % enables footnotes in sections etc
+\usepackage{hyperref} % enables hyperlinks
+%\usepackage{helvet} % helvetica
+
+
+\makeatletter
+\makeatother
+
+\usepackage{babel}
+\begin{document}
+%\renewcommand{\familydefault}{\sfdefault} % san serif font
+
+\title{OpenFOAM in AWS}
+
+
+\author{Grzegorz Kotysz}
+
+
+\date{UPDATE}
+
+\maketitle
+\newpage{}
+
+\tableofcontents{}
+
+\newpage{}
+
+\section{Introduction}
+
+The purpose of this paper is to learn how to use AWS computing cloud to run OpenFOAM cases using CLI, setting up cloud computing cluster and transfering results to the local computer. Simulation case will be based on pulsejet engine inlet with fuel injection system.
+
+\section{CFD Direct AWS 	Tutorial\footnote{CFD Direct, url: https://cfd.direct/cloud/aws/, Accessed: 25.10.2018}}
+
+\subsection{Instance setup\footnote{CFD Direct, url: https://cfd.direct/cloud/aws/setup, Accessed: 25.10.2018} and launch\footnote{CFD Direct, url: https://cfd.direct/cloud/aws/launch, Accessed: 25.10.2018}}
+
+Before any interaction with AWS instances, user has to create an account and then create Key Pair, which will be used to authorize connection with the instance. It is recommended that it is saved in .ssh directory. Appropriate permissions also need to be set, so that only user can read this file. It can be done via terminal by executing following command:
+\begin{lstlisting}
+chmod 400 path/file
+\end{lstlisting}
+Launching an Instance will be based on the one prepared by CFD Direct with OpenFOAM preinstalled. It can be accessed via \url{https://aws.amazon.com/marketplace/pp/B017AHYO16/}. Then click "Continue to Subcription" to be able to launch Instances. Next click "Continue to Configuration". Here user can choose version of software and select region. Next click "Continue to Launch".
+Here user specifies whether to launch the Instant through EC2 or from Website. In our case it is EC2 Console. Now the preferred instance is chosen, for the sake of tutorial free t2.micro is used. Click "Review and Launch". In the new window find "Edit Security Groups" and in "Source" drop-down menu select "My IP" option. Click "Review and Launch". Similarly one can edit storage size by selecting "Edit Storage", setting desirable storage and clicking "Review and Launch".
+The next step is to launch the instant by clicking "Launch" button, select appropriate Key Pair and click "Launch Instances". Instance should be initialized and user should note IPv4 Public IP adress.
+
+\subsection{Connecting to an Instance and testing OpenFOAM\footnote{CFD Direct, url: https://cfd.direct/cloud/aws/connect, Accessed: 25.10.2018}}
+
+Connection with the instance can be established via SSH by runnig following command in the terminal:
+\begin{lstlisting}
+ssh -i path/SSHkey instanceUsername@publicIP
+\end{lstlisting}	
+Note: default username is "ubuntu".
+User is presented with terminal prompt. Now OpenFOAM can be tested. It will be done by changing to \$FOAM_RUN, copying \textit{pitzDaily} case from \textit{tutorials} directory, changing to copied case directory, generating mesh and running \textit{simpleFoam} solver. This can be done by following commands:
+\begin{lstlisting}
+run
+cp -r $FOAM_TUTORIALS/incompressible/simpleFoam/pitzDaily .
+cd pitzDaily
+blockMesh
+simpleFoam
+\end{lstlisting}
+Finally, data can be transferred between local machine and remote instance by scp command, i.e. copying from instance to local machine:
+\begin{lstlisting}
+scp -i path/SSHkey instanceUsername@publicIP:path/file localPath
+\end{lstlisting}
+and from local machine to remote instance:
+\begin{lstlisting}
+scp -i path/SSHkey localPath/file instanceUsername@publicIP:path/
+\end{lstlisting}
+
+\subsection{Creating a CFD Cluster\footnote{CFD Direct, url: https://cfd.direct/cloud/aws/cluster, Accessed: 25.10.2018}}
+
+\end{document}
+
