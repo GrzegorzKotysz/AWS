@@ -59,7 +59,7 @@ Connection with the instance can be established via SSH by runnig following comm
 ssh -i path/SSHkey instanceUsername@publicIP
 \end{lstlisting}	
 Note: default username is "ubuntu".
-User is presented with terminal prompt. Now OpenFOAM can be tested. It will be done by changing to \$FOAM_RUN, copying \textit{pitzDaily} case from \textit{tutorials} directory, changing to copied case directory, generating mesh and running \textit{simpleFoam} solver. This can be done by following commands:
+User is presented with terminal prompt. Now OpenFOAM can be tested. It will be done by changing to \$FOAM\_RUN, copying \textit{pitzDaily} case from \textit{tutorials} directory, changing to copied case directory, generating mesh and running \textit{simpleFoam} solver. This can be done by following commands:
 \begin{lstlisting}
 run
 cp -r $FOAM_TUTORIALS/incompressible/simpleFoam/pitzDaily .
@@ -77,6 +77,98 @@ scp -i path/SSHkey localPath/file instanceUsername@publicIP:path/
 \end{lstlisting}
 
 \subsection{Creating a CFD Cluster\footnote{CFD Direct, url: https://cfd.direct/cloud/aws/cluster, Accessed: 25.10.2018}}
+
+The example presented in the tutorial uses c4.8xlarge instances, however t4.micro can be used for testing purpose if no placement group is defined. If placement group is used, one must check whether chosen instance type can be used as a part of the placement group\footnote{AWS, url: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/placement-groups.html, Accessed: 08.11.2018}. Cluster will be based on 1 master instance with appropriate storage for the simulation and 3 slave instances with minimal storage.
+
+The one time configuration of security group is needed to enable access between instances. At this point it will be created from GUI.
+\begin{enumerate}
+	\item Select \textit{Security Groups} in AWS console.
+	\item Click \textit{Create Security Group}.
+	\item In the pop-up windows specify \textit{Group Name} and \textit{Description} which will specify the role for the group.
+	\item Choose \textit{Add Rule} option and for \textit{Inbound} select \textbf{SSH} Type and \textbf{My IP} Source.
+	\item Click \textit{Create}.
+\end{enumerate}
+In order to allow instances to connect with each other within cluster, one must edit created security group.
+\begin{enumerate}
+	\item Select desired security group and for \textit{Inbound} rules tab click \textit{Edit}.
+	\item Click \textit{Add Rule} and select \textit{All TCP} Type.
+	\item Select \textbf{Custom} Source and start typing security group name until a panel pops up. Then select your \textit{cluster group}.
+\end{enumerate}
+To ensure smooth and fast operation of a cluster, instances need to be connected through a low latency, high speed network. It can be achieved by running them in appropriate placement group.
+\begin{enumerate}
+	\item In AWS console select \textit{Placement Groups}.
+	\item Choose \textit{Create Placement Group}.
+	\item Enter group name, select \textbf{cluster} in \textit{Strategy} field and click \textit{Create}.
+\end{enumerate}
+The next step is to launch instances. In the tutorial instances are created one at a time, but placement group documentation suggests to create all the cluster's instances at once to ensure that there is enough capacity on a given server. The procedure is as follows:
+\begin{enumerate}
+	\item Choose an instance that supports placement groups.
+	\item Under \textit{Instance Details} select \textit{group\_name} from the \textit{Placement Group} menu.
+	\item Under \textit{Security Group} choose \textit{Select and existing security group} and choose appropriate group.
+	\item Under \textit{Storage} set a volume size which will be enough to store the data.
+	\item Click \textit{Launch}.
+\end{enumerate}
+Slave instances can be created all at once by specifying number of instances under \textit{Instance Details}. For the slave intances disable \textit{Auto-assign Public IP} under \textit{Instance Details} as these instances only need to communicate with the master.
+
+\subsubsection{Connecting instances}
+Once per login session user must enable SSH access from master instance to the slave instance by using \textit{SSH agent forwarding}. It allows using to use agent forwarding instead of storing key on master node, which is not adviseable. Agent forwarding is enabled by adding private key to the authentication agent by the following command:
+\begin{lstlisting}
+ssh-add path/SSHkey
+\end{lstlisting}
+Now user can SSH login without specifying key by using -A option:
+\begin{lstlisting}
+ssh -A ubuntu@master_ip
+\end{lstlisting}
+Cluster is set up in a way that all data is stored on a volume attached to the master instance. Hence, OpenFOAM directory on master instance must be shared across slave instances using network file system (NFS) protocol. Firstly OpenFOAM directory is exported with \textit{exportfs} (one time only) and then mounted by all slave instances using \textit{mount}.
+OpenFOAM directory can be exported from master instance terminal by adding OpenFOAM directory to the /etc/exports file as superuser, exporting this file and starting the NFS server:
+\begin{lstlisting}
+sudo sh -c "echo '/home/ubuntu/OpenFOAM *(rw,sync,no_subtree_check)' >> /etc/exports"
+sudo exportfs -ra
+sudo service nfs-kernel-server start
+\end{lstlisting}
+The next step is to delete empty directories in the OpenFOAM directory on each slave instance and use that directory as a mount point for mounting the OpenFOAM directory on the master instance. For this user needs private IP of the master instance and private IP of each slave instance. This can be partially automated by defining environment variable which will store private IPs of slave instances. It has to be done each time instance is started.
+\begin{lstlisting}
+VAR="ip_slave1 ip_slave2 ip_slave3 ..."
+for IP in $VAR ; do ssh $IP 'rm -rf ${HOME}/OpenFOAM/*' ; done
+for IP in $VAR ; do ssh $IP 'sudo mount ip_master:${HOME}/OpenFOAM ${HOME}/OpenFOAM' ; done
+\end{lstlisting}
+Mounting of the OpenFOAM directory can be tested for each slave by the command:
+\begin{lstlisting}
+for IP in $VAR ; do ssh $IP 'ls ${HOME}/OpenFOAM' ; done
+\end{lstlisting}
+It should return \textit{ubuntu-<version>} directory.
+
+\subsubsection{Running test case}
+Cluster will be tested on the damBreak tutorial case. It will involve changing to \$FOAM\_RUN directory, copying case from the \textit{tutorials} directory, generating a mesh, refining the mesh, creating field file and initialising with \textit{setFields}. Then mesh will be decomposed using \textit{decomposePar} utility and running \textit{interFoam} solver in parallel.
+First log onto the master node:
+\begin{lstlisting}
+ssh -A ubuntu@master_ip
+\end{lstlisting}
+Then prepare the simulation by executing following commands:
+\begin{lstlisting}
+run
+cp -r $FOAM_TUTORIALS/multiphase/interFoam/laminar/damBreak/damBreak .
+cd damBreak
+blockMesh
+refineMesh -overwrite
+cp -r 0/alpha.water.orig 0/alpha.water
+setFields
+decomposePar
+\end{lstlisting}
+Note: number of subdomains is specified in \textit{decomposeParDict} file in \textit{system} directory.
+User needs to specify a list of host machines to run case parallel on a cluster. It should be specified in \textit{machines} file in case directory. File content should look like this:
+\begin{lstlisting}
+ip_host1
+ip_host2
+ip_host3
+.
+.
+.
+\end{lstlisting}
+Case can be run in parallel on a number of cores specified by \textit{processor} directories using the host names in the \textit{machines} file using \textit{foamJob} script with -p flag:
+\begin{lstlisting}
+foamJob -p interFoam
+\end{lstlisting}
 
 \end{document}
 
