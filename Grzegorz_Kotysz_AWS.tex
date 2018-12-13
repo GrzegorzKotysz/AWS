@@ -76,7 +76,7 @@ and from local machine to remote instance:
 scp -i path/SSHkey localPath/file instanceUsername@publicIP:path/
 \end{lstlisting}
 
-\subsection{Creating a CFD Cluster\footnote{CFD Direct, url: https://cfd.direct/cloud/aws/cluster, Accessed: 25.10.2018}}
+\subsection{\label{Creating a CFD Cluster}Creating a CFD Cluster\footnote{CFD Direct, url: https://cfd.direct/cloud/aws/cluster, Accessed: 25.10.2018}}
 
 The example presented in the tutorial uses c4.8xlarge instances, however t4.micro can be used for testing purpose if no placement group is defined. If placement group is used, one must check whether chosen instance type can be used as a part of the placement group\footnote{AWS, url: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/placement-groups.html, Accessed: 08.11.2018}. Cluster will be based on 1 master instance with appropriate storage for the simulation and 3 slave instances with minimal storage.
 
@@ -169,6 +169,96 @@ Case can be run in parallel on a number of cores specified by \textit{processor}
 \begin{lstlisting}
 foamJob -p interFoam
 \end{lstlisting}
+
+\section{AWS CLI}
+Note: this section is based on AWS CLI (Command Line Interface) documentation which can be found at AWS website.
+\subsection{\label{Install AWS CLI}Installing AWS CLI on Linux}
+According to the AWS CLI documentation the best way to assure that the newest version is installed, user should install AWS CLI via \textit{pip}. The process of installing \textit{pip} if it is not present on the system will not be described as it can be found easily on the web.
+AWS CLI can be installed by the command:
+\begin{lstlisting}	
+pip install awscli --upgrade --user
+\end{lstlisting}
+\textit{--upgrade} updates all requirements and \textit{--user} option installs the program to a subdirectory of user directory.
+
+\subsection{Configuring AWS CLI}
+The fastest way to start is to execute \textit{aws configure} command. This will add default profile, which will be used for executing AWS command if no profile will be explicitly specified. User must specify AWS Access Key ID, AWS Secret Access Key, default region name and default output format. \textit{AWS Access Key} and \textit{AWS Secret Access Key} are connected with AWS credentials connected with IAM user or role. \textit{Access Key ID} and \textit{Secret Access Key} can be created via IAM console in \textit{Security creedentials} tab. \textit{Default region name} specifies appropriate server. \textit{Default output format} specifies format of the results (options include: json, text, table).
+
+Other profiles can be created by executing \textit{aws configure} with \textit{--profile} flag:
+\begin{lstlisting}
+aws configure --profile user2
+\end{lstlisting}
+Then, commands can be run via default profile, or specified by aforementioned flag. I.e.
+\begin{lstlisting}
+aws s3 ls
+aws s3 ls --profile myuser
+\end{lstlisting}
+
+Credentials data can be stored in many places on the computer and the precedence is defined in the following order:
+\begin{enumerate}
+	\item Command line options, i.e. \textit{--region, --output, --profile} flags.
+	\item Environment variables: \textit{AWS\_ACCESS\_KEY\_ID, AWS\_SECRET\_ACCESS\_KEY, AWS\_SESSION\_TOKEN}.
+	\item CLI credentials file located at \textit{~/.aws/credentials}.
+	\item CLI configuration file located at \textit{~/.aws/config}.
+	\item Container credentials.
+	\item Instance profile credentials.
+\end{enumerate}
+
+\subsubsection*{Using environment variables}
+Non-default profile can be used for single command as described above, but for multiple commands it can be tedious. Hence, one can create temporary environment variable (lasting until the end of shell session) by executing following command:
+\begin{lstlisting}
+export AWS_PROFILE=profile_name
+\end{lstlisting}
+Additionally, another environment variables can be set to change options for shell process. List of available commands can be found in \href{https://en.wikibooks.org/wiki/LaTeX/Hyperlinks}{AWS Documentation, section Environment Variables}.
+
+\subsubsection*{Command Completion}
+AWS CLI includes command-completion feature which can be used with the \textbf{TAB} key. It might not be installed automatically. 
+First, start by locating shell's installation directory by running:
+\begin{lstlisting}
+echo $SHELL
+\end{lstlisting}
+Then, locate AWS Completer by running:
+\begin{lstlisting}
+which aws_completer
+\end{lstlisting}
+Depending on shell type, different command must be used to enable AWS Completer. In case of bash, add
+\begin{lstlisting}
+complete -C 'path_to_aws_completer/aws_completer' aws
+\end{lstlisting}
+into \textit{~/.bashrc} file if you want it to be enabled every time you launch the shell.
+ 	
+\section{Running EC2 Instance via AWS CLI\footnote{AWS, url: https://docs.aws.amazon.com/cli/latest/userguide/tutorial-ec2-ubuntu.html, Accessed: 12.12.2018}}
+
+First of all, install AWS CLI as described in section \ref{Install AWS CLI}. Then, run \textit{aws configure} and set up your credentials.
+Verify that credentials are configured correctly by executing:
+\begin{lstlisting}
+aws ec2 describe-regions --output table
+\end{lstlisting}
+It should return table containing list of regions available at AWS.
+The next step is to create a Security Group and Key Pair. As mentioned in section \ref{Creating a CFD Cluster}, rule must be added to allow connection via SSH tunnel. Note that \textit{--vpc-id} parameter will be omitted as default VPC will be used. Run
+\begin{lstlisting}
+aws ec2 create-security-group --group-name tutorial-sg --description "security group for tutorial"
+\end{lstlisting}
+It should return security group ID, which will be needed when launching the instance. Set described permission with following command:
+\begin{lstlisting}
+aws ec2 authorize-security-group-ingress --group-name tutorial-sg --protocol tcp --port 22 --cidr 0.0.0.0/0
+\end{lstlisting}
+Next, create key pair to be able to connect to the instance:
+\begin{lstlisting}
+aws ec2 create-key-pair --key-name tutorial-key --query 'KeyMaterial' --output text > tutorial-key.pem
+\end{lstlisting}
+Do not forget about changing permissions for the key file:
+\begin{lstlisting}
+chmod 400 key_name.pem
+\end{lstlisting}
+Now, you are ready to launch and connect to the instance. You will need --image-id parameter which specifies AMI used. In case of OpenFOAM 6 on Ubuntu 18.04 provided by CFD Direct it is ami-e0d2d10b. Other parameters are self-explanatory. This command returns instance ID.
+\begin{lstlisting}
+aws ec2 run-instances --image-id ami-e0d2d10b --security-group-ids <security-group-id> --count <instances_number> --instance-type <i.e. t2.micro> --key-name tutorial-key --query 'Instances[0].InstanceId'
+\end{lstlisting}
+When instance is running, you can query public ip address, so you can connect to this instance.
+\begin{lstlisting}
+aws ec2 describe-instances --instance-ids <instance ID> --query 'Reservations[0].Instances[0].PublicIpAddress'
+\end{lstlisting}
+
 
 \end{document}
 
