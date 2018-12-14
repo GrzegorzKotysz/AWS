@@ -1,0 +1,11 @@
+# returns id and and name of all Instances
+aws ec2 describe-instances --query 'Reservations[*].Instances[*].[InstanceId,Tags[0].Value]' --output text
+
+# terminates all instances
+aws ec2 terminate-instances --instance-ids $(aws ec2 describe-instances --query 'Reservations[*].Instances[*].InstanceId' --output text)
+
+# get list of instance types
+aws pricing get-attribute-values --service-code AmazonEC2 --attribute-name instanceType --region us-east-1 --output text | sed 's/ATTRIBUTEVALUES\t//g'
+
+# run instances using json file
+aws ec2 run-instances --cli-input-json file://template.json

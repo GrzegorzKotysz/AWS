@@ -1,0 +1,25 @@
+{
+    "ImageId": "ami-e0d2d10b",
+    "InstanceType": "t2.micro",
+    "KeyName": "tutorial-key",
+    "MaxCount": 2,
+    "MinCount": 2,
+    "Monitoring": {
+        "Enabled": true
+    },
+    "SecurityGroups": [
+        "tutorial-sg"
+    ],
+    "DryRun": false,
+    "TagSpecifications": [
+        {
+            "ResourceType": "instance",
+            "Tags": [
+                {
+                    "Key": "Name",
+                    "Value": "Tutorial"
+                }
+            ]
+        }
+    ]
+}
