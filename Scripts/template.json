@@ -1,9 +1,9 @@
 {
     "ImageId": "ami-e0d2d10b",
-    "InstanceType": "t2.micro",
+    "InstanceType": "c5.large",
     "KeyName": "tutorial-key",
-    "MaxCount": 2,
-    "MinCount": 2,
+    "MaxCount": 1,
+    "MinCount": 1,
     "Monitoring": {
         "Enabled": true
     },
@@ -11,6 +11,19 @@
         "tutorial-sg"
     ],
     "DryRun": false,
+    "Placement": {
+        "AvailabilityZone": "",
+        "Affinity": "",
+        "GroupName": "",
+        "HostId": "",
+        "Tenancy": "default",
+        "SpreadDomain": ""
+    },
+    "NetworkInterfaces": [
+        {
+            "AssociatePublicIpAddress": true,
+        }
+    ],
     "TagSpecifications": [
         {
             "ResourceType": "instance",
@@ -21,5 +34,9 @@
                 }
             ]
         }
-    ]
+    ],
+    "CpuOptions": {
+        "CoreCount": 1,
+        "ThreadsPerCore": 1
+    },
 }

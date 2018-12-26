@@ -1,5 +1,5 @@
-# returns id and and name of all Instances
-aws ec2 describe-instances --query 'Reservations[*].Instances[*].[InstanceId,Tags[0].Value]' --output text
+# returns id and and name of all Instances and public IP
+aws ec2 describe-instances --query 'Reservations[*].Instances[*].[InstanceId,Tags[0].Value, PublicIpAddress]' --output text
 
 # terminates all instances
 aws ec2 terminate-instances --instance-ids $(aws ec2 describe-instances --query 'Reservations[*].Instances[*].InstanceId' --output text)
