@@ -110,7 +110,7 @@ The next step is to launch instances. In the tutorial instances are created one 
 	\item Under \textit{Storage} set a volume size which will be enough to store the data.
 	\item Click \textit{Launch}.
 \end{enumerate}
-Slave instances can be created all at once by specifying number of instances under \textit{Instance Details}. For the slave intances disable \textit{Auto-assign Public IP} under \textit{Instance Details} as these instances only need to communicate with the master.
+Slave instances can be created all at once by specifying number of instances under \textit{Instance Details}. For the slave instances disable \textit{Auto-assign Public IP} under \textit{Instance Details} as these instances only need to communicate with the master.
 
 \subsubsection{Connecting instances}
 Once per login session user must enable SSH access from master instance to the slave instance by using \textit{SSH agent forwarding}. It allows using to use agent forwarding instead of storing key on master node, which is not adviseable. Agent forwarding is enabled by adding private key to the authentication agent by the following command:
@@ -273,6 +273,8 @@ aws ec2 run-instances --generate-cli-skeleton > file
 After creating this template, it can be tailored to user's needs by editing in any text editor. Note that when for example KeyName is specified, user does not specify extension of file, rather just name of key. As most often the same set of parameters will be specified during creation of instances, CLI Skeleton will be used for creating OpenFOAM cluster via CLI. Useful parameter for template testing purposes is \textit{DryRun} as when set to \textit{true} it checks whether JSON is formed correctly.
 
 \section{Script for cluster creation}
+
+Security group specification in network interface if network interface is edited
 
 \end{document}
 

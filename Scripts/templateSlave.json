@@ -1,0 +1,41 @@
+{
+    "ImageId": "ami-e0d2d10b",
+    "InstanceType": "c5.large",
+    "KeyName": "tutorial-key",
+    "MaxCount": ,
+    "MinCount": ,
+    "Monitoring": {
+        "Enabled": true
+    },
+    "DryRun": false,
+    "Placement": {
+        "AvailabilityZone": "",
+        "GroupName": "",
+        "Tenancy": "default"
+    },
+    "NetworkInterfaces": [
+        {
+            "AssociatePublicIpAddress": false,
+            "DeleteOnTermination": true,
+            "DeviceIndex": 0,
+            "Groups": [
+                "tutorial-sg"
+            ]
+        }
+    ],
+    "TagSpecifications": [
+        {
+            "ResourceType": "instance",
+            "Tags": [
+                {
+                    "Key": "Name",
+                    "Value": "defaultName"
+                }
+            ]
+        }
+    ],
+    "CpuOptions": {
+        "CoreCount": ,
+        "ThreadsPerCore": 1
+    }
+}
