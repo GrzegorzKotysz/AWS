@@ -8,6 +8,14 @@
         "Enabled": true
     },
     "DryRun": false,
+    "BlockDeviceMappings": [
+        {
+            "DeviceName": "",
+            "Ebs": {
+                "VolumeSize": 0
+            }
+        }
+    ],
     "Placement": {
         "AvailabilityZone": "",
         "GroupName": "",

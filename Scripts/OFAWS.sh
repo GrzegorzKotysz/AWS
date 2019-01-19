@@ -20,10 +20,6 @@ sed -i 's/numberOfSubdomains 4;/numberOfSubdomains '$numberOfProcesses';/' ./sys
 sed -i 's/(2 2 1)/('$numberOfNodes' '$numberOfCores' 1)/' ./system/decomposeParDict
 decomposePar
 
-printf "\n\n\n\n\n\n"
-ls 
-printf "\n\n\n\n\n\n"
-
 foamJob -p -w interFoam
 
 # construct log files in user-friendly form

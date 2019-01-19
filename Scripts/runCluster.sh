@@ -1,10 +1,12 @@
 #!/bin/bash
 
 # define names and paths:
-masterName="master3"
-slaveName="slave3"
+masterName="master4"
+slaveName="slave4"
 instanceType="c5.large"
 numberOfCPUs=1
+diskDeviceName="/dev/sda1"
+diskSize=40 # in GB, default for this AMI
 sshKey=~/.ssh/tutorial-key.pem
 sshKeyName="tutorial-key"
 masterCliSkeleton=~/Documents/AWS/Scripts/templateMaster.json
@@ -12,9 +14,9 @@ slaveCliSkeleton=~/Documents/AWS/Scripts/templateSlave.json
 tempDir=~/Documents/AWS/temp/
 userName="ubuntu"
 numberOfNodes=2 # how many nodes (including master)
-openFoamScript=/home/greg/OpenFOAM/greg-v1712/AWS/OFAWS.sh
-placementGroupName="ClusterCFD"
-securityGroupName="Cluster Security"
+openFoamScript=~/Documents/AWS/Scripts/OFAWS.sh
+placementGroupName="Cluster4"
+securityGroupName="Cluster4"
 securityGroupDescription="Security Group created by runCluster script"
 
 # how to specify root memory ??
@@ -94,9 +96,12 @@ sed -i 's/"CoreCount": ,/"CoreCount": '$numberOfCPUs',/' $tempMasterCliSkeleton 
 # edit names
 sed -i 's/"Value": "defaultName"/"Value": "'"$masterName"'"/' $tempMasterCliSkeleton
 sed -i 's/"Value": "defaultName"/"Value": "'"$slaveName"'"/' $tempSlaveCliSkeleton
-}
 
 # add disk space
+sed -i 's\"DeviceName": ""\"DeviceName": "'"$diskDeviceName"'"\' $tempMasterCliSkeleton
+sed -i 's/"VolumeSize": 0/"VolumeSize": '$diskSize'/' $tempMasterCliSkeleton
+
+}
 
 # create instances 
 aws ec2 run-instances --cli-input-json file://"$tempMasterCliSkeleton"
@@ -130,18 +135,23 @@ do
     sleep 3s
 done
 printf "Initialization finished \n"
-sleep 10s
+# sleep 10s
 
 # copy OpenFOAM script to master node
-scp "$openFoamScript" "$userName""@""$masterIP":"$remoteOFScript"
-
-# # copy necessary variables
-# ssh -A "$userName""@""$masterIP" /bin/bash << EOF
-#     export masterPrivateIP=$masterPrivateIP
-#     export slavesPrivateIPs=$slavesPrivateIPs
-#     echo \$masterPrivateIP
-# EOF
-
+while 
+    scp -q "$openFoamScript" "$userName""@""$masterIP":"$remoteOFScript"
+    ssh -q "$userName""@""$masterIP" ! test -e "$remoteOFScript"
+do 
+    printf "OF script yet to be copied, please wait\n"
+    sleep 3s
+done
+if ssh -q "$userName""@""$masterIP" test -e "$remoteOFScript" ; then
+    printf "OF script copied successfully\n"
+else   
+    printf "ERROR encountered while copying OF script, exiting...\n"
+    exit 1
+fi
+    
 # creating NFS server, so all the data is stored on Master Node:
 ssh -A "$userName""@""$masterIP" /bin/bash << 'EOF'
     sudo sh -c "echo '/home/ubuntu/OpenFOAM *(rw,sync,no_subtree_check)' >> /etc/exports"
@@ -193,8 +203,8 @@ ssh -A "$userName""@""$masterIP" /bin/bash << EOF
     # wait for a program to finish
     while [ 1 ]
     do
-    sleep 3s
-    ps cax | grep \$OFPID || break
+        sleep 3s
+        ps cax | grep \$OFPID || break
     done
     printf "OpenFOAM script finished\n"
 EOF
@@ -202,6 +212,7 @@ EOF
 
 # copy new data to S3 bucket
 # terminate instances in securyity group when calculations and copying are finished
+
 # http://blog.xi-group.com/2015/01/small-tip-how-to-use-aws-cli-filter-parameter/
 
-aws ec2 terminate-instances --instance-ids $(aws ec2 describe-instances --filter Name="instance.group-name",Values="$securityGroupName" --query 'Reservations[*].Instances[*].[InstanceId]' --output text)
+# aws ec2 terminate-instances --instance-ids $(aws ec2 describe-instances --filter Name="instance.group-name",Values="$securityGroupName" --query 'Reservations[*].Instances[*].[InstanceId]' --output text)
