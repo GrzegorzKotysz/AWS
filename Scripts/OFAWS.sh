@@ -31,5 +31,8 @@ reconstructPar
 # remove unnecessary files
 rm -r processor*
 
+# create variable for s3 copying
+localFolder="$FOAM_RUN"
+
 # exit script
 exit 1

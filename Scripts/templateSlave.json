@@ -30,6 +30,10 @@
                 {
                     "Key": "Name",
                     "Value": "defaultName"
+                },
+                {
+                    "Key": "tag-name",
+                    "Value": "tag-value"
                 }
             ]
         }

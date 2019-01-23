@@ -9,3 +9,6 @@ aws pricing get-attribute-values --service-code AmazonEC2 --attribute-name insta
 
 # run instances using json file
 aws ec2 run-instances --cli-input-json file://template.json
+
+# attach instance profile to running instance by some filters etc
+aws ec2 associate-iam-instance-profile --instance-id $(aws ec2 describe-instances --filter "Name=tag-key,Values=Name" "Name=tag-value,Values=$masterName" --query 'Reservations[*].Instances[*].[InstanceId]' --output text ) --iam-instance-profile Name=${placementGroupName}InstanceProfile

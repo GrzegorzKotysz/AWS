@@ -21,6 +21,9 @@
         "GroupName": "",
         "Tenancy": "default"
     },
+    "IamInstanceProfile": {
+        "Name": "instanceProfileName"
+    },
     "NetworkInterfaces": [
         {
             "AssociatePublicIpAddress": true,
@@ -38,6 +41,10 @@
                 {
                     "Key": "Name",
                     "Value": "defaultName"
+                },
+                {
+                    "Key": "tag-name",
+                    "Value": "tag-value"
                 }
             ]
         }
