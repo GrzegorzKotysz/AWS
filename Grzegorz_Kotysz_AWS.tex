@@ -274,6 +274,146 @@ After creating this template, it can be tailored to user's needs by editing in a
 
 \section{Script for cluster creation}
 
+The attached script will create appropriate IAM role, instance profile, placement group, security group, then run specified instances, copy data to these instances, run selected script with OpenFOAM instructions, send data to S3 bucket and finally, terminate all instances connected with the case.
+
+First, variables containing names and paths are specified:
+\begin{lstlisting}
+caseName="test"
+
+instanceType="c5.large" #c5.large
+numberOfCPUs=1
+numberOfNodes=2 # how many nodes (including master)
+
+diskDeviceName="/dev/sda1" # edit disk space
+diskSize=20 # in GB
+
+openFoamScript=~/Documents/AWS/Scripts/OFAWS.sh
+masterCliSkeleton=~/Documents/AWS/Scripts/templateMaster.json
+slaveCliSkeleton=~/Documents/AWS/Scripts/templateSlave.json
+tempDir=~/Documents/AWS/temp/
+
+S3Bucket=""
+userName="ubuntu" # as in host
+
+placementGroupName="ClusterTest"
+securityGroupName="ClusterTest"
+securityGroupDescription="Security Group created by runCluster script"
+
+EC2trustFile=~/Documents/AWS/Scripts/iamEC2trust.json
+permissionsPolicyFile=~/Documents/AWS/Scripts/iamPermissionsPolicy.json
+
+sshKey=~/.ssh/tutorial-key.pem
+sshKeyName="tutorial-key"
+region=eu-central-1
+tag=Case # tag name for iam policies
+\end{lstlisting}
+The following list explains meaning of non selfexplanatory variables:
+\begin{itemize}
+	\item \textit{caseName} determines name of the folder where data will be stored as well as tag for instances and names for IAM policies, roles and instance profile,
+	\item \textit{instanceType} is selfexplanatory, however, user must bear in mind that not all instance types allow for certain options used in .json templates, especially specifying CPU options,
+	\item \textit{numberOfCPUs} can be specified if instance type allows, so user can use less physical processors than default for instance type,
+	\item \textit{numberOfNodes} means how many instances will be created,
+	\item \textit{openFoamScript} specifies path to the script containing OpenFOAM connected commands which shall be executed on master node,
+	\item \textit{masterCliSkeleton, slaveCliSkeleton} specifies path to templates for starting instances,
+	\item \textit{S3Bucket} stores path to S3 folder, i.e. xxx/xyz/, where xxx is bucket name and xyz is folder within bucket,
+	\item \textit{EC2trustFile} stores path to file containing JSON data about policy allowing EC2 instance to assume role,
+	\item \textit{permissionsPolicyFile} stores path to JSON file with IAM policy specification.
+\end{itemize}
+Then, derived variables are created containing information about instances names, IAM names and about temporary files.
+\begin{lstlisting}
+masterName="\$caseName""Master"
+slaveName="\$caseName""Slave"
+iamPolicyName="\$caseName""Policy"
+iamRoleName="\$caseName""Role"
+instanceProfileName="\$caseName""Profile"
+S3BucketFolder="\$S3Bucket""\$caseName"
+
+(( numberOfSlaves= \$numberOfNodes - 1 ))
+tempMasterCliSkeleton="\$tempDir""tempMaster.json"
+tempSlaveCliSkeleton="\$tempDir""tempSlave.json"
+tempPermissionsPolicyFile="\$tempDir""tempIamPermissionsPolicy.json"
+remoteOFScript="\textbackslash\{\}\$FOAM\_RUN/OFaws.sh"
+\end{lstlisting}
+Next, specified files are checked, i.e. whether they exist and are readable and whether instance type is correct.
+\begin{lstlisting}
+if [ ! -r $sshKey ] ; then
+printf "sshKey does not exist: %s\n" "$sshKey"
+exit 1
+fi
+if [ ! -r $masterCliSkeleton ] ; then
+printf "Master CLI Skeleton does not exist: %s\n" "$masterCliSkeleton"
+exit 1
+fi
+if [ ! -r $slaveCliSkeleton ] ; then
+printf "Slave CLI Skeleton does not exist: %s\n" "$slaveCliSkeleton"
+exit 1
+fi
+if [ ! -r $openFoamScript ] ; then
+printf "OpenFOAM script does not exist: %s\n" "$openFoamScript"
+exit 1
+fi
+if [[ $(aws pricing get-attribute-values --service-code AmazonEC2 --attribute-name instanceType --region us-east-1 --output text | sed 's/ATTRIBUTEVALUES\t//g' | grep -w $instanceType -c ) -eq 0 ]] ; then
+printf "ERROR! Invalid instance type:""$instanceType""\n"
+exit 1
+fi
+\end{lstlisting}
+Now, placement group is created if it does not already exist:
+\begin{lstlisting}
+if [[ $(aws ec2 describe-placement-groups --output text | sed 's/PLACEMENTGROUPS\t//' | sed 's/\t.*//' | grep -w -i $placementGroupName -c) -eq 0 ]] ; then
+aws ec2 create-placement-group --group-name $placementGroupName --strategy cluster
+fi
+\end{lstlisting}
+Then, security group is created if it does not exist. It is done by creating \textit{myip} variable first, so inbound connection can only be done from this ip. Also, the connection within security group must be allowed, so the communication between master and slaves is possible.
+\begin{lstlisting}
+myip=$(curl http://checkip.amazonaws.com)
+if [[ $(aws ec2 describe-security-groups --query 'SecurityGroups[*].GroupName' --output text | grep -w "$securityGroupName" -c) -eq 0 ]] ; then
+	aws ec2 create-security-group --group-name "$securityGroupName" --description "$securityGroupDescription"
+	aws ec2 authorize-security-group-ingress --group-name "$securityGroupName" --protocol tcp --port 0-65535 --source-group "$securityGroupName"
+fi
+
+aws ec2 authorize-security-group-ingress --group-name "$securityGroupName" --protocol tcp --port 22 --cidr ${myip}/32
+securityGroupId=$(aws ec2 describe-security-groups --query 'SecurityGroups[*].[GroupName, GroupId]' --output text | grep "$securityGroupName" | sed 's/.*\t//')
+\end{lstlisting}
+Next, temporary files are edited to reflect user specified parameters:
+\begin{lstlisting}
+# create temporary templates
+mkdir $tempDir
+cp $masterCliSkeleton $tempMasterCliSkeleton
+cp $slaveCliSkeleton $tempSlaveCliSkeleton
+
+# edit temporary template so appropriate placement group is used
+sed -i 's/"GroupName": "",/"GroupName": "'"$placementGroupName"'",/' $tempMasterCliSkeleton $tempSlaveCliSkeleton
+
+# edit security group ID
+sed -i 's/"tutorial-sg"/"'"$securityGroupId"'"/' $tempMasterCliSkeleton $tempSlaveCliSkeleton
+
+# edit instance type
+sed -i 's/"InstanceType": "c5.large",/"InstanceType": "'"$instanceType"'",/' $tempMasterCliSkeleton $tempSlaveCliSkeleton
+
+# edit instances number
+sed -i -e 's/"MaxCount": ,/"MaxCount": '$numberOfSlaves',/' -e 's/"MinCount": ,/"MinCount": '$numberOfSlaves',/' $tempSlaveCliSkeleton
+
+# edit cpu core number
+sed -i 's/"CoreCount": ,/"CoreCount": '$numberOfCPUs',/' $tempMasterCliSkeleton $tempSlaveCliSkeleton
+
+# edit names
+sed -i 's/"Value": "defaultName"/"Value": "'"$masterName"'"/' $tempMasterCliSkeleton
+sed -i 's/"Value": "defaultName"/"Value": "'"$slaveName"'"/' $tempSlaveCliSkeleton
+
+# add disk space
+sed -i 's\"DeviceName": ""\"DeviceName": "'"$diskDeviceName"'"\' $tempMasterCliSkeleton
+sed -i 's/"VolumeSize": 0/"VolumeSize": '$diskSize'/' $tempMasterCliSkeleton
+
+# edit key [case name]
+sed -i -e 's/tag-name/'$tag'/' -e 's/tag-value/'$caseName'/' $tempMasterCliSkeleton $tempSlaveCliSkeleton
+\end{lstlisting}
+Important information for IAM policies is account ID. In this script it is acquired by aws sts get-caller-identity command.
+\begin{lstlisting}
+userID=$(aws sts get-caller-identity --query 'Account' --output text)
+\end{lstlisting}
+In the following section, IAM 
+
+
 Security group specification in network interface if network interface is edited
 
 \end{document}

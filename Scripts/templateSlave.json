@@ -5,7 +5,7 @@
     "MaxCount": ,
     "MinCount": ,
     "Monitoring": {
-        "Enabled": true
+        "Enabled": false
     },
     "DryRun": false,
     "Placement": {

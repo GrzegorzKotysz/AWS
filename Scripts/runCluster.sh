@@ -64,6 +64,12 @@ if [ ! -r $openFoamScript ] ; then
 fi
 }
 
+# check if instance type is correct
+if [[ $(aws pricing get-attribute-values --service-code AmazonEC2 --attribute-name instanceType --region us-east-1 --output text | sed 's/ATTRIBUTEVALUES\t//g' | grep -w $instanceType -c ) -eq 0 ]] ; then
+    printf "ERROR! Invalid instance type:""$instanceType""\n"
+    exit 1
+fi
+
 # create placement group
 # check if placement group already exists
 if [[ $(aws ec2 describe-placement-groups --output text | sed 's/PLACEMENTGROUPS\t//' | sed 's/\t.*//' | grep -w -i $placementGroupName -c) -eq 0 ]] ; then
@@ -71,22 +77,19 @@ if [[ $(aws ec2 describe-placement-groups --output text | sed 's/PLACEMENTGROUPS
     aws ec2 create-placement-group --group-name $placementGroupName --strategy cluster
 fi
 
-# check if instance type is correct
-if [[ $(aws pricing get-attribute-values --service-code AmazonEC2 --attribute-name instanceType --region us-east-1 --output text | sed 's/ATTRIBUTEVALUES\t//g' | grep -w $instanceType -c ) -eq 0 ]] ; then
-    printf "ERROR! Invalid instance type:""$instanceType""\n"
-fi
-
-# check if security group exists, if not, create one:
+# create security group
+# get your ip to create temporary inbound rule
+myip=$(curl http://checkip.amazonaws.com)
 if [[ $(aws ec2 describe-security-groups --query 'SecurityGroups[*].GroupName' --output text | grep -w "$securityGroupName" -c) -eq 0 ]] ; then
     aws ec2 create-security-group --group-name "$securityGroupName" --description "$securityGroupDescription"
-    # allowing connection via ssh tunnel:
-    aws ec2 authorize-security-group-ingress --group-name "$securityGroupName" --protocol tcp --port 22 --cidr 0.0.0.0/0
     # allowing connection within cluster
     aws ec2 authorize-security-group-ingress --group-name "$securityGroupName" --protocol tcp --port 0-65535 --source-group "$securityGroupName"
 fi
+# allowing connection via ssh tunnel:
+aws ec2 authorize-security-group-ingress --group-name "$securityGroupName" --protocol tcp --port 22 --cidr ${myip}/32
 
 securityGroupId=$(aws ec2 describe-security-groups --query 'SecurityGroups[*].[GroupName, GroupId]' --output text | grep "$securityGroupName" | sed 's/.*\t//')
-
+    
 
 # creating and editing temporary CLI Skeletons
 {
@@ -169,7 +172,7 @@ aws iam add-role-to-instance-profile --instance-profile-name $instanceProfileNam
 sed -i 's|instanceProfileName|'$instanceProfileName'|' $tempMasterCliSkeleton
 
 # waitings help with: An error occurred (InvalidParameterValue) when calling the RunInstances operation: Value (testProfile) for parameter iamInstanceProfile.name is invalid. Invalid IAM Instance Profile name
-sleep 10s
+sleep 15s
 
 # create instances 
 aws ec2 run-instances --cli-input-json file://"$tempMasterCliSkeleton"
@@ -204,7 +207,7 @@ masterPrivateIP=$(aws ec2 describe-instances --filter Name="tag:Name",Values=$ma
 # fetching slaves private IPs
 slavesPrivateIPs=$(aws ec2 describe-instances --filter Name="tag:Name",Values=$slaveName Name="instance-state-name",Values="running" --query 'Reservations[*].Instances[*].[PrivateIpAddress]' --output text | tr '\n' ' ') # format ip1 ip2 ip3
 
-# copy OpenFOAM script to master node
+# copy OpenFOAM script [and other data if needed] to master node
 while 
     scp -q "$openFoamScript" "$userName""@""$masterIP":"$remoteOFScript"
     ssh -q "$userName""@""$masterIP" ! test -e "$remoteOFScript"
@@ -224,7 +227,6 @@ ssh -A "$userName""@""$masterIP" /bin/bash << EOF
     sudo sh -c "echo '/home/'$userName'/OpenFOAM *(rw,sync,no_subtree_check)' >> /etc/exports"
     sudo exportfs -ra
     sudo service nfs-kernel-server start
-    ssh-keyscan -H -t rsa $slavesPrivateIPs  >> ~/.ssh/known_hosts
 EOF
 
 # creating known host file
@@ -266,16 +268,17 @@ EOF
 instancesIDs=$(aws ec2 describe-instances --filter Name=tag:$tag,Values=$caseName Name="instance-state-name",Values="running" --query 'Reservations[*].Instances[*].[InstanceId]' --output text | tr '\n' ' ')
 
 # run script
-nohup ssh -A "$userName""@""$masterIP" /bin/bash << EOF
+nohup ssh -A "$userName""@""$masterIP" /bin/bash << EOF &
      # run openFoam connected script:
      source "$remoteOFScript" $numberOfNodes $listOfIPs &
      # get OpenFoam script PID
      OFPID=\$(echo \$!)
-     # wait for a program to finishk
+     # wait for a program to finish
      wait $OFPID
      printf "OpenFOAM script finished\n"
      aws s3 cp --recursive "\$FOAM_RUN" s3://"$S3BucketFolder"
      echo $instancesIDs
      aws ec2 terminate-instances --region eu-central-1 --instance-ids $instancesIDs
-     aws ec2 terminate-instances --region eu-central-1 --instance-ids i-00bdd2c1c4d5ee172
 EOF
+
+aws ec2 revoke-security-group-ingress --group-name "$securityGroupName" --protocol tcp --port 22 --cidr ${myip}/32

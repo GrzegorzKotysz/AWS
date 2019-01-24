@@ -5,7 +5,7 @@
     "MaxCount": 1,
     "MinCount": 1,
     "Monitoring": {
-        "Enabled": true
+        "Enabled": false
     },
     "DryRun": false,
     "BlockDeviceMappings": [
