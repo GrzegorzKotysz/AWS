@@ -1,4 +1,6 @@
-\documentclass[12pt,english]{article}
+\documentclass[11pt,english]{article}
+\usepackage{helvet}
+\renewcommand{\familydefault}{\sfdefault}  % san serif font
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
 \usepackage[a4paper]{geometry}
@@ -11,7 +13,6 @@
 \usepackage{listings} % enables source code to be pasted
 \usepackage[stable]{footmisc} % enables footnotes in sections etc
 \usepackage{hyperref} % enables hyperlinks
-%\usepackage{helvet} % helvetica
 
 
 \makeatletter
@@ -19,15 +20,13 @@
 
 \usepackage{babel}
 \begin{document}
-%\renewcommand{\familydefault}{\sfdefault} % san serif font
 
+\thispagestyle{empty}
 \title{OpenFOAM in AWS}
-
 
 \author{Grzegorz Kotysz}
 
-
-\date{UPDATE}
+\date{}
 
 \maketitle
 \newpage{}
@@ -38,23 +37,23 @@
 
 \section{Introduction}
 
-The purpose of this paper is to learn how to use AWS computing cloud to run OpenFOAM cases using CLI, setting up cloud computing cluster and transfering results to the local computer. Simulation case will be based on pulsejet engine inlet with fuel injection system.
+The purpose of this paper is to learn how to use AWS computing cloud to run OpenFOAM cases using CLI, setting up cloud computing cluster and transferring results to the local computer. Simulation case will be based on dam break tutorial case.
 
-\section{CFD Direct AWS 	Tutorial\footnote{CFD Direct, url: https://cfd.direct/cloud/aws/, Accessed: 25.10.2018}}
+\section{CFD Direct AWS Tutorial\footnote{CFD Direct, URL: \url{https://cfd.direct/cloud/aws/}, Accessed: 25.10.2018}}
 
-\subsection{Instance setup\footnote{CFD Direct, url: https://cfd.direct/cloud/aws/setup, Accessed: 25.10.2018} and launch\footnote{CFD Direct, url: https://cfd.direct/cloud/aws/launch, Accessed: 25.10.2018}}
+\subsection{Instance setup\footnote{CFD Direct, URL: \url{https://cfd.direct/cloud/aws/setup}, Accessed: 25.10.2018} and launch\footnote{CFD Direct, URL: \url{https://cfd.direct/cloud/aws/launch}, Accessed: 25.10.2018}}
 
 Before any interaction with AWS instances, user has to create an account and then create Key Pair, which will be used to authorize connection with the instance. It is recommended that it is saved in .ssh directory. Appropriate permissions also need to be set, so that only user can read this file. It can be done via terminal by executing following command:
 \begin{lstlisting}
 chmod 400 path/file
 \end{lstlisting}
-Launching an Instance will be based on the one prepared by CFD Direct with OpenFOAM preinstalled. It can be accessed via \url{https://aws.amazon.com/marketplace/pp/B017AHYO16/}. Then click "Continue to Subcription" to be able to launch Instances. Next click "Continue to Configuration". Here user can choose version of software and select region. Next click "Continue to Launch".
+Launching an Instance will be based on the one prepared by CFD Direct with OpenFOAM preinstalled. It can be accessed via \url{https://aws.amazon.com/marketplace/pp/B017AHYO16/}. Then click "Continue to Subscription" to be able to launch Instances. Next click "Continue to Configuration". Here user can choose version of software and select region. Next click "Continue to Launch".
 Here user specifies whether to launch the Instant through EC2 or from Website. In our case it is EC2 Console. Now the preferred instance is chosen, for the sake of tutorial free t2.micro is used. Click "Review and Launch". In the new window find "Edit Security Groups" and in "Source" drop-down menu select "My IP" option. Click "Review and Launch". Similarly one can edit storage size by selecting "Edit Storage", setting desirable storage and clicking "Review and Launch".
-The next step is to launch the instant by clicking "Launch" button, select appropriate Key Pair and click "Launch Instances". Instance should be initialized and user should note IPv4 Public IP adress.
+The next step is to launch the instant by clicking "Launch" button, select appropriate Key Pair and click "Launch Instances". Instance should be initialized and user should note IPv4 Public IP address.
 
-\subsection{Connecting to an Instance and testing OpenFOAM\footnote{CFD Direct, url: https://cfd.direct/cloud/aws/connect, Accessed: 25.10.2018}}
+\subsection{Connecting to an Instance and testing OpenFOAM\footnote{CFD Direct, URL: \url{https://cfd.direct/cloud/aws/connect}, Accessed: 25.10.2018}}
 
-Connection with the instance can be established via SSH by runnig following command in the terminal:
+Connection with the instance can be established via SSH by running following command in the terminal:
 \begin{lstlisting}
 ssh -i path/SSHkey instanceUsername@publicIP
 \end{lstlisting}	
@@ -76,11 +75,11 @@ and from local machine to remote instance:
 scp -i path/SSHkey localPath/file instanceUsername@publicIP:path/
 \end{lstlisting}
 
-\subsection{\label{Creating a CFD Cluster}Creating a CFD Cluster\footnote{CFD Direct, url: https://cfd.direct/cloud/aws/cluster, Accessed: 25.10.2018}}
+\subsection{\label{Creating a CFD Cluster}Creating a CFD Cluster\footnote{CFD Direct, url: \url{https://cfd.direct/cloud/aws/cluster}, Accessed: 25.10.2018}}
 
-The example presented in the tutorial uses c4.8xlarge instances, however t4.micro can be used for testing purpose if no placement group is defined. If placement group is used, one must check whether chosen instance type can be used as a part of the placement group\footnote{AWS, url: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/placement-groups.html, Accessed: 08.11.2018}. Cluster will be based on 1 master instance with appropriate storage for the simulation and 3 slave instances with minimal storage.
+The example presented in the tutorial uses c4.8xlarge instances, however t4.micro can be used for testing purpose if no placement group is defined. If placement group is used, one must check whether chosen instance type can be used as a part of the placement group\footnote{AWS, URL: \url{https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/placement-groups.html}, Accessed: 08.11.2018}. Cluster will be based on 1 master instance with appropriate storage for the simulation and 3 slave instances with minimal storage.
 
-Note: Placement Group determines how instances are placed within Amazon hardware. For best performance, instances should be placed within \textit{Cluster} group, which ensures that instances are places in low-latency group.\footnote{Amazon, url: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/placement-groups.html, Accessed: 26.12.2018}
+Note: Placement Group determines how instances are placed within Amazon hardware. For best performance, instances should be placed within \textit{Cluster} group, which ensures that instances are places in low-latency group.\footnote{Amazon, URL: \url{https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/placement-groups.html}, Accessed: 26.12.2018}
 
 The one time configuration of security group is needed to enable access between instances. At this point it will be created from GUI.
 \begin{enumerate}
@@ -113,7 +112,7 @@ The next step is to launch instances. In the tutorial instances are created one 
 Slave instances can be created all at once by specifying number of instances under \textit{Instance Details}. For the slave instances disable \textit{Auto-assign Public IP} under \textit{Instance Details} as these instances only need to communicate with the master.
 
 \subsubsection{Connecting instances}
-Once per login session user must enable SSH access from master instance to the slave instance by using \textit{SSH agent forwarding}. It allows using to use agent forwarding instead of storing key on master node, which is not adviseable. Agent forwarding is enabled by adding private key to the authentication agent by the following command:
+Once per login session user must enable SSH access from master instance to the slave instance by using \textit{SSH agent forwarding}. It allows using to use agent forwarding instead of storing key on master node, which is not advised. Agent forwarding is enabled by adding private key to the authentication agent by the following command:
 \begin{lstlisting}
 ssh-add path/SSHkey
 \end{lstlisting}
@@ -185,7 +184,7 @@ pip install awscli --upgrade --user
 \textit{--upgrade} updates all requirements and \textit{--user} option installs the program to a subdirectory of user directory.
 
 \subsection{Configuring AWS CLI}
-The fastest way to start is to execute \textit{aws configure} command. This will add default profile, which will be used for executing AWS command if no profile will be explicitly specified. User must specify AWS Access Key ID, AWS Secret Access Key, default region name and default output format. \textit{AWS Access Key} and \textit{AWS Secret Access Key} are connected with AWS credentials connected with IAM user or role. \textit{Access Key ID} and \textit{Secret Access Key} can be created via IAM console in \textit{Security creedentials} tab. \textit{Default region name} specifies appropriate server. \textit{Default output format} specifies format of the results (options include: json, text, table).
+The fastest way to start is to execute \textit{aws configure} command. This will add default profile, which will be used for executing AWS command if no profile will be explicitly specified. User must specify AWS Access Key ID, AWS Secret Access Key, default region name and default output format. \textit{AWS Access Key} and \textit{AWS Secret Access Key} are connected with AWS credentials connected with IAM user or role. \textit{Access Key ID} and \textit{Secret Access Key} can be created via IAM console in \textit{Security credentials} tab. \textit{Default region name} specifies appropriate server. \textit{Default output format} specifies format of the results (options include: json, text, table).
 
 Other profiles can be created by executing \textit{aws configure} with \textit{--profile} flag:
 \begin{lstlisting}
@@ -212,7 +211,7 @@ Non-default profile can be used for single command as described above, but for m
 \begin{lstlisting}
 export AWS_PROFILE=profile_name
 \end{lstlisting}
-Additionally, another environment variables can be set to change options for shell process. List of available commands can be found in \href{https://en.wikibooks.org/wiki/LaTeX/Hyperlinks}{AWS Documentation, section Environment Variables}.
+Additionally, another environment variables can be set to change options for shell process. List of available commands can be found in \href{https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html}{AWS Documentation, section Environment Variables}.
 
 \subsubsection*{Command Completion}
 AWS CLI includes command-completion feature which can be used with the \textbf{TAB} key. It might not be installed automatically. 
@@ -230,7 +229,7 @@ complete -C 'path_to_aws_completer/aws_completer' aws
 \end{lstlisting}
 into \textit{~/.bashrc} file if you want it to be enabled every time you launch the shell.
  	
-\section{Running EC2 Instance via AWS CLI\footnote{AWS, url: https://docs.aws.amazon.com/cli/latest/userguide/tutorial-ec2-ubuntu.html, Accessed: 12.12.2018}}
+\section{Running EC2 Instance via AWS CLI\footnote{AWS, URL: \url{https://docs.aws.amazon.com/cli/latest/userguide/tutorial-ec2-ubuntu.html}, Accessed: 12.12.2018}}
 
 First of all, install AWS CLI as described in section \ref{Install AWS CLI}. Then, run \textit{aws configure} and set up your credentials.
 Verify that credentials are configured correctly by executing:
@@ -264,7 +263,7 @@ aws ec2 describe-instances --instance-ids <instance ID> --query 'Reservations[0]
 \end{lstlisting}
 Now you can connect via ssh to your Instance.
 
-\subsection{CLI Skeleton\footnote{AWS, url: https://docs.aws.amazon.com/cli/latest/userguide/cli-usage-skeleton.html, Accessed: 14.12.2018}}
+\subsection{CLI Skeleton\footnote{AWS, URL: \url{https://docs.aws.amazon.com/cli/latest/userguide/cli-usage-skeleton.html}, Accessed: 14.12.2018}}
 
 In order to speed up creation of instances, CLI Skeleton can be prepared. CLI Skeleton in JSON file which stores parameters of \textit{aws ec2 run-instance} command. User can specify any combination of parameters within file. This file template can be generated by running command (and saved to file):
 \begin{lstlisting}
@@ -307,10 +306,10 @@ sshKeyName="tutorial-key"
 region=eu-central-1
 tag=Case # tag name for iam policies
 \end{lstlisting}
-The following list explains meaning of non selfexplanatory variables:
+The following list explains meaning of non self-explanatory variables:
 \begin{itemize}
 	\item \textit{caseName} determines name of the folder where data will be stored as well as tag for instances and names for IAM policies, roles and instance profile,
-	\item \textit{instanceType} is selfexplanatory, however, user must bear in mind that not all instance types allow for certain options used in .json templates, especially specifying CPU options,
+	\item \textit{instanceType} is self-explanatory, however, user must bear in mind that not all instance types allow for certain options used in .json templates, especially specifying CPU options,
 	\item \textit{numberOfCPUs} can be specified if instance type allows, so user can use less physical processors than default for instance type,
 	\item \textit{numberOfNodes} means how many instances will be created,
 	\item \textit{openFoamScript} specifies path to the script containing OpenFOAM connected commands which shall be executed on master node,
@@ -334,7 +333,7 @@ tempSlaveCliSkeleton="\$tempDir""tempSlave.json"
 tempPermissionsPolicyFile="\$tempDir""tempIamPermissionsPolicy.json"
 remoteOFScript="\textbackslash\{\}\$FOAM\_RUN/OFaws.sh"
 \end{lstlisting}
-Next, specified files are checked, i.e. whether they exist and are readable and whether instance type is correct.
+Next, specified files are checked, i.e. whether they exist and are readable and if instance type is correct.
 \begin{lstlisting}
 if [ ! -r $sshKey ] ; then
 printf "sshKey does not exist: %s\n" "$sshKey"
@@ -411,10 +410,144 @@ Important information for IAM policies is account ID. In this script it is acqui
 \begin{lstlisting}
 userID=$(aws sts get-caller-identity --query 'Account' --output text)
 \end{lstlisting}
-In the following section, IAM 
+In the following section, instance profile will be created, however, there are some steps needed to be taken before to ensure no errors. First of all, if instance profile with given name exists, it must be deleted. In order to achieve this, all roles have to be removed from instance profile. Then, it can be deleted. The next step is to remove old IAM role, which has the same name as the one user wants to create. IAM role cannot be deleted if it has policies attached, so first policies are detached and then role is deleted. 
+\begin{lstlisting}
+if [ $(aws iam list-instance-profiles --query InstanceProfiles[*].InstanceProfileName | grep -w $instanceProfileName -c) -eq 1 ] ; then
+if ! [ "$(aws iam get-instance-profile --instance-profile-name $instanceProfileName --query "InstanceProfile".Roles[*].RoleName)" == 'null' ] ; then
+aws iam remove-role-from-instance-profile --instance-profile-name $instanceProfileName --role-name $(aws iam get-instance-profile --instance-profile-name $instanceProfileName --query "InstanceProfile".Roles[*].RoleName --output text)
+fi
+aws iam delete-instance-profile --instance-profile-name $instanceProfileName
+fi
 
+if [ $(aws iam list-roles --query Roles[*].RoleName | grep -w $iamRoleName -c) -eq 1 ] ; then
+for policyAttached in $(aws iam list-role-policies --role-name $iamRoleName --query PolicyNames[*] --output text)
+do
+aws iam delete-role-policy --role-name $iamRoleName --policy-name $policyAttached
+done
+aws iam delete-role --role-name $iamRoleName
+fi
+\end{lstlisting}
+Now, new role can be created with policy specifying that EC2 service instances can assume role. Then, temporary file is created, so that S3 bucket etc. can be specified prior to creating new instances. Next, policy is attached to the role, which enables sending data to S3 bucket and terminating instances with given resource tag. Finally, role is added to instance profile and instance profile is associated with master instance CLI-skeleton. Due to the time needed for AWS to coordinate data across their services, sleep command was added as without this wait, instance creation signal was sent before instance profile was ready, which lead to and error and lack of creation of master instance. Finally, instances are created and temporary files are removed.
+\begin{lstlisting}
+cp $permissionsPolicyFile $tempPermissionsPolicyFile
 
-Security group specification in network interface if network interface is edited
+sed -i -e 's|defaultBucket|'"$S3BucketFolder"'/*|' \
+-e 's|arn:aws:ec2:region:userID:instance|arn:aws:ec2:'$region':'$userID':instance|' \
+-e 's|"ec2:ResourceTag/tag-name":"tag-value"|"ec2:ResourceTag/'$tag'":"'$caseName'"|' "$tempPermissionsPolicyFile"
+
+aws iam put-role-policy --role-name $iamRoleName --policy-name $iamPolicyName --policy-document file://$tempPermissionsPolicyFile
+
+if [ $(aws iam list-instance-profiles --query InstanceProfiles[*].InstanceProfileName | grep -w testProfile -c) -eq 0 ] ; then
+aws iam create-instance-profile --instance-profile-name $instanceProfileName
+fi
+
+aws iam add-role-to-instance-profile --instance-profile-name $instanceProfileName --role-name $iamRoleName
+
+sed -i 's|instanceProfileName|'$instanceProfileName'|' $tempMasterCliSkeleton
+
+sleep 15s
+
+aws ec2 run-instances --cli-input-json file://"$tempMasterCliSkeleton"
+aws ec2 run-instances --cli-input-json file://"$tempSlaveCliSkeleton"
+
+rm -r $tempDir
+\end{lstlisting}
+Agent forwarding shall be enabled so the user can communicate with slave instances via master.
+\begin{lstlisting}
+ssh-add $sshKey
+\end{lstlisting}
+Then, one should wait for initialization of instances to be finished.
+\begin{lstlisting}
+while [[ ! ( $(aws ec2 describe-instances --filter Name=tag:Name,Values=$masterName --query 'Reservations[*].Instances[*].[State.Name]' --output text | grep -w "running" -c) -eq 1 && $(aws ec2 describe-instances --filter Name=tag:Name,Values=$slaveName --query 'Reservations[*].Instances[*].[State.Name]' --output text | grep -w "running" -c) -eq $numberOfSlaves ) ]] 
+do
+printf "Waiting for initialization\n"
+sleep 3s
+done
+printf "Initialization finished \n"
+\end{lstlisting}
+Then, public ip of master node must be gathered in order to be able to connect via ssh. In addition, private ip numbers of master node and all slaves are downloaded. These are needed for NFS server connection and for mpi library later used in OpenFOAM parallel calculations.
+\begin{lstlisting}
+masterIP="NULL"
+while [[ $masterIP == "NULL" ]]
+do
+masterIP=$(aws ec2 describe-instances --filter Name="tag:Name",Values=$masterName Name="instance-state-name",Values="running" --query 'Reservations[*].Instances[*].[PublicIpAddress]' --output text)
+done
+
+masterPrivateIP=$(aws ec2 describe-instances --filter Name="tag:Name",Values=$masterName Name="instance-state-name",Values="running" --query 'Reservations[*].Instances[*].[PrivateIpAddress]' --output text)
+
+slavesPrivateIPs=$(aws ec2 describe-instances --filter Name="tag:Name",Values=$slaveName Name="instance-state-name",Values="running" --query 'Reservations[*].Instances[*].[PrivateIpAddress]' --output text | tr '\n' ' ') # format ip1 ip2 ip3
+\end{lstlisting}
+In the next step, script containing OpenFOAM commands is copied, however, if simulation case is not a variation of tutorial case, i.e. it can be copied from tutorial with minor modification, user should also copy necessary files at this point. The purpose of this loop is to ensure files are really copied, as it happened during testing that even though the state of instances was "running", ssh connection failed. Hence the double checking.
+\begin{lstlisting}
+while 
+scp -q "$openFoamScript" "$userName""@""$masterIP":"$remoteOFScript"
+ssh -q "$userName""@""$masterIP" ! test -e "$remoteOFScript"
+do 
+printf "OF script yet to be copied, please wait\n"
+sleep 3s
+done
+if ssh -q "$userName""@""$masterIP" test -e "$remoteOFScript" ; then
+printf "OF script copied successfully\n"
+else   
+printf "ERROR encountered while copying OF script, exiting...\n"
+exit 1
+fi
+\end{lstlisting}
+The next step is to create NFS server, so all data can be store at master node, which enables slave disk to be small and hence saving some credits. One of the steps is to create known host file at master node, so all the ssh connection can be done in background without prompting user for input. All of the following ssh commands could be sent simultaneously.
+\begin{lstlisting}
+ssh -A "$userName""@""$masterIP" /bin/bash << EOF
+sudo sh -c "echo '/home/'$userName'/OpenFOAM *(rw,sync,no_subtree_check)' >> /etc/exports"
+sudo exportfs -ra
+sudo service nfs-kernel-server start
+EOF
+
+ssh -A "$userName""@""$masterIP" /bin/bash << EOF
+ssh-keyscan -H -t rsa $slavesPrivateIPs  >> ~/.ssh/known_hosts
+EOF
+
+ssh -A "$userName""@""$masterIP" /bin/bash << EOF
+for ip in $slavesPrivateIPs ; do 
+ssh \$ip 'rm -rf \${HOME}/OpenFOAM/*' 
+done
+EOF
+
+ssh -A "$userName""@""$masterIP" /bin/bash << EOF
+for ip in $slavesPrivateIPs ; do
+ssh \$ip "sudo mount $masterPrivateIP:\${HOME}/OpenFOAM \${HOME}/OpenFOAM"
+done
+EOF
+
+ssh -A "$userName""@""$masterIP" /bin/bash << EOF
+for ip in $slavesPrivateIPs ; do
+ssh \$ip 'ls \${HOME}/OpenFOAM' ;
+done
+EOF
+\end{lstlisting}
+Next step is to create list of private ip numbers for mpi library.
+\begin{lstlisting}
+listOfIPs='/home/ubuntu/OpenFOAM/ipList.txt'
+
+ssh -A "$userName""@""$masterIP" /bin/bash << EOF
+printf "$masterPrivateIP"" $slavesPrivateIPs" | tr ' ' '\n' > $listOfIPs
+\end{lstlisting}
+One last piece of information must be fetched from AWS, namely IDs of all instances with given tag, so all nodes will be terminated after end of calculations.
+\begin{lstlisting}
+instancesIDs=$(aws ec2 describe-instances --filter Name=tag:$tag,Values=$caseName Name="instance-state-name",Values="running" --query 'Reservations[*].Instances[*].[InstanceId]' --output text | tr '\n' ' ')
+\end{lstlisting}
+Finally, the set of commands are sent to master node with nohup command, so these commands will be executed independently from user's machine state. It launches OF script, waits for it to finish, then sends data to S3 bucket and terminates all instances.
+\begin{lstlisting}
+nohup ssh -A "$userName""@""$masterIP" /bin/bash << EOF &
+source "$remoteOFScript" $numberOfNodes $listOfIPs &
+OFPID=\$(echo \$!)
+wait $OFPID
+aws s3 cp --recursive "\$FOAM_RUN" s3://"$S3BucketFolder"
+aws ec2 terminate-instances --region eu-central-1 --instance-ids $instancesIDs
+EOF
+\end{lstlisting}
+Meanwhile at user's computer, command is sent to AWS to revoke security group rule allowing connection via ssh to master node, making cluster unreachable and safe. If user needs to connect later to master node, i.e. to check if calculations are being done, new inbound rule must be created as it was described already.
+\begin{lstlisting}
+aws ec2 revoke-security-group-ingress --group-name "$securityGroupName" --protocol tcp --port 22 --cidr ${myip}/32
+\end{lstlisting}
 
 \end{document}
 
